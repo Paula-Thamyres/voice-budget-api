@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: voice_budget
+      POSTGRES_USER: voice_budget
+      POSTGRES_PASSWORD: voice_budget
+    ports:
+      - "5432"

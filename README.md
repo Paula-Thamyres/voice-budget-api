@@ -23,12 +23,14 @@ API de orçamento pessoal que funciona por voz: você fala o gasto, a IA entende
 - [O problema](#o-problema)
 - [Como funciona](#como-funciona)
 - [O que dá para pedir](#o-que-dá-para-pedir)
+- [O que evoluí a partir do projeto base](#o-que-evoluí-a-partir-do-projeto-base)
 - [Padrões de projeto](#padrões-de-projeto)
 - [Decisões técnicas](#decisões-técnicas)
 - [Endpoints](#endpoints)
 - [Como rodar](#como-rodar)
 - [Testes](#testes)
 - [Estrutura](#estrutura)
+- [O que aprendi](#o-que-aprendi)
 
 <p align="center">
   <img src="assets/faixa.svg" alt="" width="100%">
@@ -65,6 +67,22 @@ Aqui basta falar. "Gastei 45 reais no mercado" vira uma despesa de alimentação
 | "Gastei no mercado" | Pergunta o valor antes de registrar, e entende a resposta seguinte |
 
 As mesmas perguntas funcionam por texto em `POST /assistant/text`, o que ajuda a testar sem gravar áudio.
+
+<p align="center">
+  <img src="assets/faixa.svg" alt="" width="100%">
+</p>
+
+## O que evoluí a partir do projeto base
+
+O ponto de partida foi o projeto final da trilha de Spring da DIO, o [05-spring-ai](https://github.com/digitalinnovationone/dio-spring-boot-learning-track/blob/main/05-spring-ai/README.md): receber um áudio, transcrever, deixar a IA escolher uma função da aplicação e responder em voz. Mantive esse fluxo e montei a minha versão com estes pontos:
+
+- **Provedores gratuitos.** No lugar da OpenAI, a transcrição e o modelo de linguagem rodam na Groq, e a voz vem da ElevenLabs. Dá para rodar o projeto inteiro sem cartão de crédito.
+- **Validações antes de salvar.** Valor, data, descrição, tipo e categoria são conferidos no serviço. Nem a IA consegue gravar um valor negativo ou uma data no futuro.
+- **Mais consultas para a IA.** Além de registrar, o assistente responde o resumo do mês, com saldo e gastos por categoria, e lista as últimas movimentações.
+- **Respostas mais inteligentes.** O assistente sabe a data de hoje, entende "ontem" e "este mês" e lembra da conversa: se faltar o valor, ele pergunta.
+- **Histórico das conversas.** Cada comando fica salvo com a mensagem, a resposta e o canal (voz ou texto). Isso serve de auditoria e permite ouvir de novo qualquer resposta.
+- **Endpoints e documentação.** Rotas REST completas para as movimentações, erros padronizados no formato ProblemDetail e Swagger com todos os códigos de resposta.
+- **Testes e CI.** 33 testes, incluindo integração com PostgreSQL de verdade via Testcontainers, rodando no GitHub Actions a cada push.
 
 <p align="center">
   <img src="assets/faixa.svg" alt="" width="100%">
@@ -171,8 +189,12 @@ No Windows (PowerShell), use `.\mvnw.cmd spring-boot:run`. O PostgreSQL sobe soz
 http://localhost:8080/swagger-ui.html
 ```
 
-> [!TIP]
-> Para testar a voz, grave um áudio curto no celular ou no Gravador de Voz do Windows e envie em `POST /assistant/voice`. Depois, use o `id` da resposta em `GET /assistant/interactions/{id}/speech` para ouvir o MP3.
+![5](https://img.shields.io/badge/5-690037?style=flat-square) **Teste o fluxo principal**
+
+1. Em `POST /assistant/text`, envie `{"message": "Gastei 35 reais no almoço hoje"}`. A resposta confirma a despesa.
+2. Em `GET /transactions`, a despesa aparece salva no banco, na categoria `FOOD`.
+3. Grave um áudio curto no celular ou no Gravador de Som do Windows, falando um gasto, e envie em `POST /assistant/voice`.
+4. Use o `id` da resposta em `GET /assistant/interactions/{id}/speech` para ouvir a resposta em MP3.
 
 <p align="center">
   <img src="assets/faixa.svg" alt="" width="100%">
@@ -211,6 +233,22 @@ src/main/java/com/paulathamyres/voicebudget
 ```
 
 **Tecnologias:** Java 21, Spring Boot 4.1, Spring AI 2.0 (ChatClient, Tool Calling, Transcription e Text-to-Speech), Groq, ElevenLabs, PostgreSQL, Flyway, Docker Compose, Testcontainers, springdoc-openapi, JUnit, Mockito e GitHub Actions.
+
+<p align="center">
+  <img src="assets/faixa.svg" alt="" width="100%">
+</p>
+
+## O que aprendi
+
+- **Integrar IA é mais sobre fronteiras do que sobre o modelo.** A IA chama o mesmo serviço que a API REST, então as regras de negócio valem para os dois, e trocar de fornecedor foi só configuração.
+- **Plano gratuito tem regras próprias.** A Groq recusou o raciocínio que o Spring AI reenvia junto da conversa, e a ElevenLabs só libera as vozes padrão pela API. Os dois erros só ficaram claros lendo o log com calma.
+- **Variável de ambiente do sistema vale mais que o `.env`.** Uma chave antiga esquecida no Windows passou por cima da nova e fez a API receber `401`.
+- **Conflito de dependências aparece em tempo de execução.** O Swagger quebrou porque uma biblioteca trazia uma versão antiga das anotações dele, e o `dependency:tree` do Maven mostrou de onde ela vinha.
+- **Testar com banco de verdade dá mais segurança.** Com Testcontainers os testes usam um PostgreSQL real, e simular só a IA deixa os testes rápidos e sem custo.
+
+<p align="center">
+  <img src="assets/faixa.svg" alt="" width="100%">
+</p>
 
 Desenvolvido com apoio de IA generativa (Claude), como propõe o bootcamp.
 
